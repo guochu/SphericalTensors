@@ -395,7 +395,7 @@ end
 function Base.get(t::TensorMap{<:IndexSpace,N₁,N₂,I}, f::Tuple{FusionTree{I,N₁}, FusionTree{I,N₂}}, default=nothing) where {N₁,N₂,I<:Sector}
     f1, f2 = f
     c = f1.coupled
-    c == f2.coupled || throw(SectorMismatch())
+    c == f2.coupled || return default
     tmp1 = get(t.rowr, c, nothing)
     isnothing(tmp1) && return default
     r1 = get(tmp1, f1, nothing)
