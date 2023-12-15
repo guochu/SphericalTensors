@@ -15,6 +15,8 @@ end
 Base.adjoint(t::TensorMap) = AdjointTensorMap(t)
 Base.adjoint(t::AdjointTensorMap) = t.parent
 
+Base.similar(t::AdjointTensorMap, T::Type, P::TensorMapSpace) = similar(t', T, P)
+
 # Properties
 codomain(t::AdjointTensorMap) = domain(t.parent)
 domain(t::AdjointTensorMap) = codomain(t.parent)
