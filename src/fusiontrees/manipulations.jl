@@ -172,6 +172,9 @@ function merge(f1::FusionTree{I, N₁}, f2::FusionTree{I, N₂}, c::I) where {I,
     if !(c in f1.coupled ⊗ f2.coupled)
         throw(SectorMismatch("cannot fuse sectors $(f1.coupled) and $(f2.coupled) to $c"))
     end
+    if FusionStyle(I) isa UniqueFusion
+        return _abelian_merge(f1, f2, c)
+    end
     f0 = FusionTree((f1.coupled, f2.coupled), c, (false, false), ())
     f, coeff = first(insertat(f0, 1, f1)) # takes fast path, single output
     @assert coeff == one(coeff)
@@ -180,6 +183,11 @@ end
 function merge(f1::FusionTree{I, 0}, f2::FusionTree{I, 0}, c::I) where {I}
     c == one(I) || throw(SectorMismatch("cannot fuse sectors $(f1.coupled) and $(f2.coupled) to $c"))
     return FusionTreeDict(f1=>Fsymbol(c, c, c, c, c, c))
+end
+
+function _abelian_merge(f1::FusionTree{I, N₁}, f2::FusionTree{I, N₂}, c::I) where {I, N₁, N₂}
+    f = FusionTree((f1.uncoupled..., f2.uncoupled...), c, (f1.isdual..., f2.isdual...))
+    return SingletonDict(f=>1)
 end
 
 # ELEMENTARY DUALITY MANIPULATIONS: A- and B-moves
@@ -549,7 +557,16 @@ as a `<:AbstractDict` of output trees and corresponding coefficients; this requi
 `BraidingStyle(sectortype(f)) isa SymmetricBraiding`.
 """
 function permute(f::FusionTree{I, N}, p::NTuple{N, Int}) where {I<:Sector, N}
+    if FusionStyle(f) isa UniqueFusion
+        return _abelian_permute(f, p)
+    end
     return braid(f, ntuple(identity, Val(N)), p)
+end
+
+function _abelian_permute(f::FusionTree{I, N}, p::NTuple{N, Int}) where {I<:Sector, N}
+    uncoupled = TupleTools.getindices(f.uncoupled, p)
+    isdual = TupleTools.getindices(f.isdual, p)
+    return SingletonDict(FusionTree(uncoupled, f.coupled, isdual)=>1)
 end
 
 """
@@ -576,12 +593,7 @@ function braid(f1::FusionTree{I}, f2::FusionTree{I},
     @assert length(f1) + length(f2) == N₁ + N₂
     @assert length(f1) == length(levels1) && length(f2) == length(levels2)
     @assert TupleTools.isperm((p1..., p2...))
-    if FusionStyle(I) isa UniqueFusion
-        return _abelian_braid((f1, f2, levels1, levels2, p1, p2))
-    else
-        return _braid((f1, f2, levels1, levels2, p1, p2))
-    end
-    # return _braid((f1, f2, levels1, levels2, p1, p2))
+    return _braid((f1, f2, levels1, levels2, p1, p2))
 end
 
 const BraidKey{I<:Sector, N₁, N₂} = Tuple{<:FusionTree{I}, <:FusionTree{I},
@@ -603,24 +615,6 @@ function _braid((f1, f2, l1, l2, p1, p2)::BraidKey{I, N₁, N₂}) where {I<:Sec
     end
     return newtrees
 end
-# shortcut for abelian symmetry
-function _abelian_braid((f1, f2, l1, l2, p1, p2)::BraidKey{I, N₁, N₂}) where {I<:Sector, N₁, N₂}
-    isdual = (f1.isdual..., (!).(f2.isdual)...)
-    uncoupled = (f1.uncoupled..., dual.(f2.uncoupled)...)
-    isdual1′, isdual2′ = TupleTools.getindices(isdual, p1), TupleTools.getindices(isdual, p2)
-    uncoupled1′, uncoupled2′ = TupleTools.getindices(uncoupled, p1), TupleTools.getindices(uncoupled, p2)
-    uncoupled2′ = ntuple(i->dual(uncoupled2′[i]), Val(N₂))
-    isdual2′ = (!).(isdual2′)
-    coupled1′ = first(⊗(I, uncoupled1′...))
-    coupled2′ = first(⊗(I, uncoupled2′...))
-    f1′ = FusionTree(uncoupled1′, coupled1′, isdual1′)
-    f2′ = FusionTree(uncoupled2′, coupled2′, isdual2′)
-    # newtrees = FusionTreeDict{Tuple{fusiontreetype(I, N₁), fusiontreetype(I, N₂)}, eltype(I)}()
-    # coeff = (coupled1′ == coupled2′) ? 1 : 0
-    # newtrees[(f1′, f2′)] = (coupled1′ == coupled2′) ? 1 : 0
-    coeff = (coupled1′ == coupled2′) ? 1 : 0
-    return SingletonDict((f1′, f2′)=>coeff)
-end
 
 """
     permute(f1::FusionTree{I}, f2::FusionTree{I},
@@ -636,7 +630,30 @@ repartitioning and permuting the tree such that sectors `p1` become outgoing and
 """
 function permute(f1::FusionTree{I}, f2::FusionTree{I},
                     p1::IndexTuple{N₁}, p2::IndexTuple{N₂}) where {I<:Sector, N₁, N₂}
+    if FusionStyle(I) isa UniqueFusion
+        return _abelian_permute(f1, f2, p1, p2)
+    end
     levels1 = ntuple(identity, length(f1))
     levels2 = length(f1) .+ ntuple(identity, length(f2))
     return braid(f1, f2, levels1, levels2, p1, p2)
+end
+
+# shortcut for abelian symmetry
+function _abelian_permute(f1::FusionTree{I}, f2::FusionTree{I},
+                            p1::IndexTuple{N₁}, p2::IndexTuple{N₂}) where {I<:Sector, N₁, N₂}
+    isdual = (f1.isdual..., (!).(f2.isdual)...)
+    uncoupled = (f1.uncoupled..., dual.(f2.uncoupled)...)
+    isdual1′, isdual2′ = TupleTools.getindices(isdual, p1), TupleTools.getindices(isdual, p2)
+    uncoupled1′, uncoupled2′ = TupleTools.getindices(uncoupled, p1), TupleTools.getindices(uncoupled, p2)
+    uncoupled2′ = ntuple(i->dual(uncoupled2′[i]), Val(N₂))
+    isdual2′ = (!).(isdual2′)
+    coupled1′ = first(⊗(I, uncoupled1′...))
+    coupled2′ = first(⊗(I, uncoupled2′...))
+    f1′ = FusionTree(uncoupled1′, coupled1′, isdual1′)
+    f2′ = FusionTree(uncoupled2′, coupled2′, isdual2′)
+    # newtrees = FusionTreeDict{Tuple{fusiontreetype(I, N₁), fusiontreetype(I, N₂)}, eltype(I)}()
+    # coeff = (coupled1′ == coupled2′) ? 1 : 0
+    # newtrees[(f1′, f2′)] = (coupled1′ == coupled2′) ? 1 : 0
+    coeff = (coupled1′ == coupled2′) ? 1 : 0
+    return SingletonDict((f1′, f2′)=>coeff)
 end
