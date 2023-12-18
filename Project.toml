@@ -1,6 +1,6 @@
 name = "SphericalTensors"
-uuid = "66ec917c-ad87-48d7-962a-90d4a228c45e"
-authors = ["This is taken from TensorKit.jl"]
+uuid = "810931ec-fc2f-499d-8094-ffc35d8d9f19"
+authors = ["Taken from TensorKit.jl"]
 version = "0.0.1"
 
 
@@ -10,4 +10,5 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Strided = "5e0ebb24-38b0-5f93-81fe-25c709ecae67"
 TensorOperations = "6aa20fa7-93e2-5fca-9bc0-fbd0db3c71a2"
 TupleTools = "9d95972d-f1c8-5527-a6e0-b4b365fa01f6"
+VectorInterface = "409d34a3-91d5-4945-b6ec-7529ddf182d8"
 WignerSymbols = "9f57e263-0b3d-5e2e-b1be-24f2bb48858b"
