@@ -80,11 +80,27 @@ function TensorMap(f, codom::ProductSpace{S,N₁}, dom::ProductSpace{S,N₂}) wh
     blocksectoriterator = blocksectors(codom ← dom)
     rowr, rowdims = _buildblockstructure(codom, blocksectoriterator)
     colr, coldims = _buildblockstructure(dom, blocksectoriterator)
-    if !isreal(I)
-        data = SectorDict(c => complex(f((rowdims[c], coldims[c])))
-                          for c in blocksectoriterator)
+    # if !isreal(I)
+    #     data = SectorDict(c => complex(f((rowdims[c], coldims[c])))
+    #                       for c in blocksectoriterator)
+    # else
+    #     data = SectorDict(c => f((rowdims[c], coldims[c])) for c in blocksectoriterator)
+    # end
+    if isempty(blocksectoriterator)
+        sampledata = f((1,1))
+        if !isreal(I) && eltype(sampledata) <: Real
+            M = typeof(complex(sampledata))
+        else
+            M = typeof(sampledata)
+        end
+        data = SectorDict{I,M}()
     else
-        data = SectorDict(c => f((rowdims[c], coldims[c])) for c in blocksectoriterator)
+        if !isreal(I)
+            data = SectorDict(c => complex(f((rowdims[c], coldims[c])))
+                              for c in blocksectoriterator)
+        else
+            data = SectorDict(c => f((rowdims[c], coldims[c])) for c in blocksectoriterator)
+        end
     end
     F₁ = fusiontreetype(I, N₁)
     F₂ = fusiontreetype(I, N₂)
