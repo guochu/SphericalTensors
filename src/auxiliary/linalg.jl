@@ -1,5 +1,5 @@
 # custom wrappers for BLAS and LAPACK routines, together with some custom definitions
-using LinearAlgebra: BlasFloat, BlasReal, BlasComplex, checksquare
+using LinearAlgebra: LAPACK, BlasFloat, BlasReal, BlasComplex, checksquare
 
 set_num_blas_threads(n::Integer) = LinearAlgebra.BLAS.set_num_threads(n)
 get_num_blas_threads(n::Integer) = LinearAlgebra.BLAS.get_num_threads(n)
