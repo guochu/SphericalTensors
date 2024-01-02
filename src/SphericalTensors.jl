@@ -75,7 +75,7 @@ using LinearAlgebra: LinearAlgebra
 using LinearAlgebra: norm, dot, normalize, normalize!, tr,
                         axpy!, axpby!, lmul!, rmul!, mul!,
                         adjoint, adjoint!, transpose, transpose!,
-                        pinv, sylvester,
+                        pinv, sylvester, triu!,
                         eigen, eigen!, svd, svd!,
                         isposdef, isposdef!, ishermitian,
                         Diagonal, Hermitian

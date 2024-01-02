@@ -521,18 +521,18 @@ end
 
 LinearAlgebra.eigen!(t::TensorMap) = ishermitian(t) ? eigh!(t) : eig!(t)
 
-function eigh!(t::TensorMap{<:ElementarySpace}; kwargs...)
+function eigh!(t::TensorMap{<:ElementarySpace})
     domain(t) == codomain(t) ||
         throw(SpaceMismatch("`eigh!` requires domain and codomain to be the same"))
     S = spacetype(t)
     I = sectortype(t)
     A = storagetype(t)
     Ar = similarstoragetype(t, real(scalartype(t)))
-    Ddata = SectorDict{I, Ar}()
-    Vdata = SectorDict{I, A}()
-    dims = SectorDict{I, Int}()
+    Ddata = SectorDict{I,Ar}()
+    Vdata = SectorDict{I,A}()
+    dims = SectorDict{I,Int}()
     for (c, b) in blocks(t)
-        values, vectors = eigen!(Hermitian(b); kwargs...)
+        values, vectors = eigh!(b)
         d = length(values)
         Ddata[c] = copyto!(similar(values, (d, d)), Diagonal(values))
         Vdata[c] = vectors
@@ -543,28 +543,24 @@ function eigh!(t::TensorMap{<:ElementarySpace}; kwargs...)
     else
         W = S(dims)
     end
-    return TensorMap(Ddata, W←W), TensorMap(Vdata, domain(t)←W)
+    return TensorMap(Ddata, W ← W), TensorMap(Vdata, domain(t) ← W)
 end
 
-function eig!(t::TensorMap; kwargs...)
+function eig!(t::TensorMap{<:ElementarySpace}; kwargs...)
     domain(t) == codomain(t) ||
         throw(SpaceMismatch("`eig!` requires domain and codomain to be the same"))
     S = spacetype(t)
     I = sectortype(t)
     T = complex(scalartype(t))
     Ac = similarstoragetype(t, T)
-    Ddata = SectorDict{I, Ac}()
-    Vdata = SectorDict{I, Ac}()
-    dims = SectorDict{I, Int}()
+    Ddata = SectorDict{I,Ac}()
+    Vdata = SectorDict{I,Ac}()
+    dims = SectorDict{I,Int}()
     for (c, b) in blocks(t)
-        values, vectors = eigen!(b; kwargs...)
+        values, vectors = eig!(b; kwargs...)
         d = length(values)
-        Ddata[c] = copyto!(similar(values, T, (d, d)), Diagonal(values))
-        if eltype(vectors) == T
-            Vdata[c] = vectors
-        else
-            Vdata[c] = copyto!(similar(vectors, T), vectors)
-        end
+        Ddata[c] = copy!(similar(values, T, (d, d)), Diagonal(values))
+        Vdata[c] = vectors
         dims[c] = d
     end
     if length(domain(t)) == 1
@@ -572,7 +568,7 @@ function eig!(t::TensorMap; kwargs...)
     else
         W = S(dims)
     end
-    return TensorMap(Ddata, W←W), TensorMap(Vdata, domain(t)←W)
+    return TensorMap(Ddata, W ← W), TensorMap(Vdata, domain(t) ← W)
 end
 
 function LinearAlgebra.isposdef!(t::TensorMap)

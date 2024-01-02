@@ -1,7 +1,5 @@
 # custom wrappers for BLAS and LAPACK routines, together with some custom definitions
-using LinearAlgebra: BlasFloat, Char, BlasInt, LAPACK, LAPACKException,
-    DimensionMismatch, SingularException, PosDefException, chkstride1, checksquare,
-    triu!
+using LinearAlgebra: BlasFloat, BlasReal, BlasComplex, checksquare
 
 set_num_blas_threads(n::Integer) = LinearAlgebra.BLAS.set_num_threads(n)
 get_num_blas_threads(n::Integer) = LinearAlgebra.BLAS.get_num_threads(n)
@@ -251,83 +249,55 @@ function _svd!(A::StridedMatrix{<:BlasFloat}, alg::Union{SVD, SDD})
     return U, S, V
 end
 
-# TODO: override Julia's eig interface
-# using LinearAlgebra.BLAS: @blasfunc, libblas, BlasReal, BlasComplex
-# using LinearAlgebra.LAPACK: liblapack, chklapackerror
-#
-# eig!(A::StridedMatrix{<:BlasFloat}) = LinAlg.LAPACK.gees!('V', A)
-# function eig!(A::StridedMatrix{T}; permute::Bool=true, scale::Bool=true) where T<:BlasReal
-#     n = size(A, 2)
-#     n == 0 && return Eigen(zeros(T, 0), zeros(T, 0, 0))
-#     issymmetric(A) && return eigfact!(Symmetric(A))
-#     A, WR, WI, VL, VR, _ = LAPACK.geevx!(permute ? (scale ? 'B' : 'P') : (scale ? 'S' : 'N'), 'N', 'V', 'N', A)
-#     evec = zeros(Complex{T}, n, n)
-#     j = 1
-#     while j <= n
-#         if WI[j] == 0
-#             evec[:,j] = view(VR, :, j)
-#         else
-#             for i = 1:n
-#                 evec[i,j]   = VR[i,j] + im*VR[i,j+1]
-#                 evec[i,j+1] = VR[i,j] - im*VR[i,j+1]
-#             end
-#             j += 1
-#         end
-#         j += 1
-#     end
-#     return Eigen(complex.(WR, WI), evec)
-# end
-#
-# function eigfact!(A::StridedMatrix{T}; permute::Bool=true, scale::Bool=true) where T<:BlasComplex
-#     n = size(A, 2)
-#     n == 0 && return Eigen(zeros(T, 0), zeros(T, 0, 0))
-#     ishermitian(A) && return eigfact!(Hermitian(A))
-#     return Eigen(LAPACK.geevx!(permute ? (scale ? 'B' : 'P') : (scale ? 'S' : 'N'), 'N', 'V', 'N', A)[[2,4]]...)
-# end
-#
-# eigfact!(A::RealHermSymComplexHerm{<:BlasReal, <:StridedMatrix}) = Eigen(LAPACK.syevr!('V', 'A', A.uplo, A.data, 0.0, 0.0, 0, 0, -1.0)...)
-#
-# TODO: reconsider the following implementation
-# Unfortunately, geqrfp seems a bit slower than geqrt in the intermediate region
-# around matrix size 100, which is the interesting region. => Investigate and maybe fix
-# function _leftorth!(A::StridedMatrix{<:BlasFloat})
-#     m, n = size(A)
-#     A, τ = geqrfp!(A)
-#     Q = LAPACK.ormqr!('L', 'N', A, τ, eye(eltype(A), m, min(m, n)))
-#     R = triu!(A[1:min(m, n), :])
-#     return Q, R
-# end
+function eig!(A::StridedMatrix{T}; permute::Bool=true, scale::Bool=true) where {T<:BlasReal}
+    n = checksquare(A)
+    n == 0 && return zeros(Complex{T}, 0), zeros(Complex{T}, 0, 0)
 
-# geqrfp!: computes qrpos factorization, missing in Base
-# geqrfp!(A::StridedMatrix{<:BlasFloat}) =
-#     ((m, n) = size(A); geqrfp!(A, similar(A, min(m, n))))
-#
-# for (geqrfp, elty, relty) in
-#     ((:dgeqrfp_, :Float64, :Float64), (:sgeqrfp_, :Float32, :Float32),
-#         (:zgeqrfp_, :ComplexF64, :Float64), (:cgeqrfp_, :ComplexF32, :Float32))
-#     @eval begin
-#         function geqrfp!(A::StridedMatrix{$elty}, tau::StridedVector{$elty})
-#             chkstride1(A, tau)
-#             m, n  = size(A)
-#             if length(tau) != min(m, n)
-#                 throw(DimensionMismatch("tau has length $(length(tau)), but needs length $(min(m, n))"))
-#             end
-#             work  = Vector{$elty}(1)
-#             lwork = BlasInt(-1)
-#             info  = Ref{BlasInt}()
-#             for i = 1:2                # first call returns lwork as work[1]
-#                 ccall((@blasfunc($geqrfp), liblapack), Nothing,
-#                       (Ptr{BlasInt}, Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt},
-#                        Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}),
-#                       Ref(m), Ref(n), A, Ref(max(1, stride(A, 2))),
-#                       tau, work, Ref(lwork), info)
-#                 chklapackerror(info[])
-#                 if i == 1
-#                     lwork = BlasInt(real(work[1]))
-#                     resize!(work, lwork)
-#                 end
-#             end
-#             A, tau
-#         end
-#     end
-# end
+    A, DR, DI, VL, VR, _ = LAPACK.geevx!(permute ? (scale ? 'B' : 'P') :
+                                         (scale ? 'S' : 'N'), 'N', 'V', 'N', A)
+    D = complex.(DR, DI)
+    V = zeros(Complex{T}, n, n)
+    j = 1
+    while j <= n
+        if DI[j] == 0
+            vr = view(VR, :, j)
+            s = conj(sign(argmax(abs, vr)))
+            V[:, j] .= s .* vr
+        else
+            vr = view(VR, :, j)
+            vi = view(VR, :, j + 1)
+            s = conj(sign(argmax(abs, vr))) # vectors coming from lapack have already real absmax component
+            V[:, j] .= s .* (vr .+ im .* vi)
+            V[:, j + 1] .= s .* (vr .- im .* vi)
+            j += 1
+        end
+        j += 1
+    end
+    return D, V
+end
+
+function eig!(A::StridedMatrix{T}; permute::Bool=true,
+              scale::Bool=true) where {T<:BlasComplex}
+    n = checksquare(A)
+    n == 0 && return zeros(T, 0), zeros(T, 0, 0)
+    D, V = LAPACK.geevx!(permute ? (scale ? 'B' : 'P') : (scale ? 'S' : 'N'), 'N', 'V', 'N',
+                         A)[[2, 4]]
+    for j in 1:n
+        v = view(V, :, j)
+        s = conj(sign(argmax(abs, v)))
+        v .*= s
+    end
+    return D, V
+end
+
+function eigh!(A::StridedMatrix{T}) where {T<:BlasFloat}
+    n = checksquare(A)
+    n == 0 && return zeros(real(T), 0), zeros(T, 0, 0)
+    D, V = LAPACK.syevr!('V', 'A', 'U', A, 0.0, 0.0, 0, 0, -1.0)
+    for j in 1:n
+        v = view(V, :, j)
+        s = conj(sign(argmax(abs, v)))
+        v .*= s
+    end
+    return D, V
+end
