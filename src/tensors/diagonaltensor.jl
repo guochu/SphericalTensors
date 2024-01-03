@@ -180,6 +180,25 @@ LinearAlgebra.Diagonal(t::TensorMap{<:IndexSpace, 1, 1}) = DiagonalMap(SectorDic
 Strided.StridedView(t::Diagonal) = t
 Base.adjoint(t::DiagonalMap) = DiagonalMap(SectorDict(c=>bc' for (c, bc) in blocks(t)), domain(t), codomain(t), t.colr, t.rowr)
 
+function Base.inv(t::DiagonalMap)
+    cod = codomain(t)
+    dom = domain(t)
+    isisomorphic(cod, dom) || throw(SpaceMismatch("codomain $cod and domain $dom are not isomorphic: no inverse"))
+
+    data = empty(t.data)
+    for (c, b) in blocks(t)
+        data[c] = inv(b)
+    end
+    return DiagonalMap(data, domain(t)←codomain(t))
+end
+function LinearAlgebra.pinv(t::DiagonalMap; kwargs...)
+    data = empty(t.data)
+    for (c, b) in blocks(t)
+        data[c] = pinv(b; kwargs...)
+    end
+    return DiagonalMap(data, domain(t)←codomain(t))
+end
+
 # Show
 #------
 function Base.summary(t::DiagonalMap)
