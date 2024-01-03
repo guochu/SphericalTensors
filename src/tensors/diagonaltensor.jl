@@ -199,6 +199,8 @@ function LinearAlgebra.pinv(t::DiagonalMap; kwargs...)
     return DiagonalMap(data, domain(t)←codomain(t))
 end
 
+has_shared_permute(t::DiagonalMap, (p1, p2)::Index2Tuple) = p1 === codomainind(t) && p2 === domainind(t)
+
 # Show
 #------
 function Base.summary(t::DiagonalMap)
