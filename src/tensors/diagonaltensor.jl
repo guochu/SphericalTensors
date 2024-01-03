@@ -201,6 +201,20 @@ end
 
 has_shared_permute(t::DiagonalMap, (p1, p2)::Index2Tuple) = p1 === codomainind(t) && p2 === domainind(t)
 
+function permute(t::DiagonalMap{S}, (p₁, p₂)::Index2Tuple{N₁,N₂};
+                 copy::Bool=false) where {S,N₁,N₂}
+    cod = ProductSpace{S,N₁}(map(n -> space(t, n), p₁))
+    dom = ProductSpace{S,N₂}(map(n -> dual(space(t, n)), p₂))
+    # share data if possible
+    if (!copy) && (p₁ === codomainind(t) && p₂ === domainind(t)) 
+        return t
+    end
+    # general case
+    @inbounds begin
+        return permute!(similar(t, cod ← dom), t, (p₁, p₂))
+    end
+end
+
 # Show
 #------
 function Base.summary(t::DiagonalMap)
