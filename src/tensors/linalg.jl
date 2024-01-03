@@ -46,9 +46,9 @@ end
 
 Construct the identity endomorphism on space `space`, i.e. return a `t::TensorMap` with `domain(t) == codomain(t) == V`, where `storagetype(t) = A` can be specified.
 """
-id(A, V::TensorSpace) = id(A, ProductSpace(V))
+id(A, V::ElementarySpace) = id(A, ProductSpace(V))
 id(V::TensorSpace) = id(Matrix{Float64}, V)
-id(::Type{A}, P::TensorSpace) where {A<:DenseMatrix} =
+id(::Type{A}, P::ProductSpace) where {A<:DenseMatrix} =
     one!(TensorMap(s->A(undef, s), P, P))
 
 """
