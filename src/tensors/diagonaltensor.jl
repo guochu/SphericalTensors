@@ -191,6 +191,13 @@ function Base.inv(t::DiagonalMap)
     end
     return DiagonalMap(data, domain(t)←codomain(t))
 end
+function Base.sqrt(t::DiagonalMap)
+    data = empty(t.data)
+    for (c, b) in blocks(t)
+        data[c] = sqrt(b)
+    end
+    return DiagonalMap(data, domain(t)←codomain(t))
+end
 function LinearAlgebra.pinv(t::DiagonalMap; kwargs...)
     data = empty(t.data)
     for (c, b) in blocks(t)
