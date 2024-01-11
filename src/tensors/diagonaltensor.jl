@@ -167,7 +167,7 @@ function Base.copy!(t::TensorMap, t2::DiagonalMap)
     end
     return t
 end
-function Base.convert(A::Type{DiagonalMap}, t::TensorMap{<:IndexSpace, 1, 1})
+function Base.convert(A::Type{<:DiagonalMap}, t::TensorMap{<:IndexSpace, 1, 1})
     for (c, b) in blocks(t)
         isdiagonal(b) || throw(ArgumentError("block sector $c is not diagonal"))
     end
