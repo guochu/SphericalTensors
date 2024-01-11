@@ -173,7 +173,7 @@ function Base.convert(A::Type{<:DiagonalMap}, t::TensorMap{<:IndexSpace, 1, 1})
     end
     return Diagonal(t)
 end 
-isdiagonal(m::AbstractMatrix) = istril(m) && istriu(m)
+isdiagonal(m::AbstractMatrix) = LinearAlgebra.istril(m) && LinearAlgebra.istriu(m)
 function Base.one(t::DiagonalMap)
     domain(t) == codomain(t) ||
         throw(SectorMismatch("no identity if domain and codomain are different"))
