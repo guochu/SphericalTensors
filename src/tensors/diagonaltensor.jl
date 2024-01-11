@@ -167,12 +167,13 @@ function Base.copy!(t::TensorMap, t2::DiagonalMap)
     end
     return t
 end
-function Base.convert(A::Type{<:DiagonalMap}, t::TensorMap{<:IndexSpace, 1, 1})
+function Base.convert(A::Type{<:DiagonalMap}, t::AbstractTensorMap{<:IndexSpace, 1, 1})
     for (c, b) in blocks(t)
         isdiagonal(b) || throw(ArgumentError("block sector $c is not diagonal"))
     end
     return Diagonal(t)
 end 
+Base.convert(::Type{<:DiagonalMap}, t::DiagonalMap) = t
 isdiagonal(m::AbstractMatrix) = LinearAlgebra.istril(m) && LinearAlgebra.istriu(m)
 function Base.one(t::DiagonalMap)
     domain(t) == codomain(t) ||
@@ -181,7 +182,7 @@ function Base.one(t::DiagonalMap)
     return DiagonalMap(data, codomain(t), domain(t), t.rowr, t.colr)
 end
 
-LinearAlgebra.Diagonal(t::TensorMap{<:IndexSpace, 1, 1}) = DiagonalMap(SectorDict(c=>Diagonal(b) for (c, b) in blocks(t)), codomain(t), domain(t), t.rowr, t.colr)	
+LinearAlgebra.Diagonal(t::AbstractTensorMap{<:IndexSpace, 1, 1}) = DiagonalMap(SectorDict(c=>Diagonal(b) for (c, b) in blocks(t)), codomain(t), domain(t), t.rowr, t.colr)	
 Strided.StridedView(t::Diagonal) = t
 Base.adjoint(t::DiagonalMap) = DiagonalMap(SectorDict(c=>bc' for (c, bc) in blocks(t)), domain(t), codomain(t), t.colr, t.rowr)
 
