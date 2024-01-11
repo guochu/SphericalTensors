@@ -167,8 +167,13 @@ function Base.copy!(t::TensorMap, t2::DiagonalMap)
     end
     return t
 end
-Base.convert(A::Type{DiagonalMap}, t::TensorMap{<:IndexSpace, 1, 1}) = Diagonal(t)
-
+function Base.convert(A::Type{DiagonalMap}, t::TensorMap{<:IndexSpace, 1, 1})
+    for (c, b) in blocks(t)
+        isdiagonal(b) || throw(ArgumentError("block sector $c is not diagonal"))
+    end
+    return Diagonal(t)
+end 
+isdiagonal(m::AbstractMatrix) = istril(m) && istriu(m)
 function Base.one(t::DiagonalMap)
     domain(t) == codomain(t) ||
         throw(SectorMismatch("no identity if domain and codomain are different"))
