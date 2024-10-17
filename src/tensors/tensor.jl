@@ -496,7 +496,7 @@ function Base.convert(T::Type{TensorMap{S,N₁,N₂,I,A,F1,F2}},
     if typeof(t) == T
         return t
     else
-        data = Dict(c=>convert(storagetype(T), b) for (c,b) in blocks(t))
+        data = Dict{I, storagetype(T)}(c=>convert(storagetype(T), b) for (c,b) in blocks(t))
         return TensorMap(data, codomain(t), domain(t))
     end
 end
